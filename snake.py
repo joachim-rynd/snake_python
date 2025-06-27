@@ -3,6 +3,8 @@ import time
 import random
 import os
 import sys
+import keyboard
+import math
 
 # Charger le meilleur score depuis un fichier
 if os.path.exists("meilleur_score.txt"):
@@ -25,6 +27,9 @@ segments = []
 jeu_en_cours = False
 pause_active = False
 fond_pause = None
+angle_snake = 90
+vitesse = 10
+positions = []
 
 # Apparition super nourriture
 snake_great_food_visible = False
@@ -46,6 +51,14 @@ wind.title("Snake Maze 🐍")
 wind.bgcolor("dark green")
 wind.setup(width=600, height=600)
 wind.tracer(0)
+
+def turn_left():
+    global angle_snake
+    angle_snake += 40
+
+def turn_right():
+    global angle_snake
+    angle_snake -= 40
 
 # Affichage game over
 def afficher_game_over():
@@ -255,27 +268,39 @@ def reset_jeu():
     score_joueur = 0
 
 # Contrôles serpent
-def go_up():
-    if snake.direction != "down":
-        snake.direction = "up"
-def go_down():
-    if snake.direction != "up":
-        snake.direction = "down"
+
 def go_left():
     if snake.direction != "right":
         snake.direction = "left"
+        
 def go_right():
     if snake.direction != "left":
         snake.direction = "right"
-def move():
-    if snake.direction == "up":
-        snake.sety(snake.ycor() + 20)
-    elif snake.direction == "down":
-        snake.sety(snake.ycor() - 20)
-    elif snake.direction == "left":
-        snake.setx(snake.xcor() - 20)
-    elif snake.direction == "right":
-        snake.setx(snake.xcor() + 20)
+        
+def move_fluide():
+    global angle_snake
+
+    
+    dx = vitesse * math.cos(math.radians(angle_snake))
+    dy = vitesse * math.sin(math.radians(angle_snake))
+    snake.setx(snake.xcor() + dx)
+    snake.sety(snake.ycor() + dy)
+    snake.setheading(angle_snake)
+
+    
+    positions.insert(0, (snake.xcor(), snake.ycor()))
+
+    
+    ecart = 5  
+    for i, segment in enumerate(segments):
+        if len(positions) > (i + 1) * ecart:
+            x, y = positions[(i + 1) * ecart]
+            segment.goto(x, y)
+
+    
+    if len(positions) > 1000:
+        positions.pop()
+
 
 # Démarrer
 def demarrer_jeu():
@@ -335,15 +360,17 @@ def quitter_jeu():
         wind.bye()
         sys.exit()
 
+
 # Contrôles clavier
 wind.listen()
-wind.onkeypress(go_up, "z")
-wind.onkeypress(go_down, "s")
-wind.onkeypress(go_left, "q")
-wind.onkeypress(go_right, "d")
+
 wind.onkeypress(demarrer_jeu, "space")
 wind.onkeypress(quitter_jeu, "b")
 wind.onkeypress(pause_jeu, "p")
+wind.onkeypress(turn_left, "q")
+wind.onkeypress(turn_right, "d")
+wind.onkeypress(turn_left, "Left")
+wind.onkeypress(turn_right, "Right")
 
 # Lancer le compteur
 afficher_compteur_non_bloquant()
@@ -427,14 +454,14 @@ try:
             segments[i].goto(x, y)
         if segments:
             segments[0].goto(snake.xcor(), snake.ycor())
-        move()
+        move_fluide()
 
         # Collision avec soi-même
-        for segment in segments:
-            if segment.distance(snake) < 20:
-                time.sleep(0.3)
+        for i, segment in enumerate(segments):
+            if i > 1 and segment.distance(snake) < 20:
                 afficher_game_over()
                 reset_jeu()
+
         time.sleep(temps_délai)
 except turtle.Terminator:
     print("Merci d’avoir joué ! À bientôt 👋")
